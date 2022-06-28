@@ -15,11 +15,11 @@ def main():
 
     url_key = int(input())
 
-    print(domains[url_key])
-
     match domains[url_key]:
         case "mangalib.me":
+            print(f"Starting {domains[url_key]} module")
             from websites_modules import mangalib_me
+            mangalib_me.execute()
         case _:
             print("Something went wrong")
 
