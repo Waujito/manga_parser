@@ -1,12 +1,9 @@
 from pathlib import Path
-from os import mkdir
 
 
 def main():
     # Welcome message
     print("Parses and downloads manga from websites with online viewing")
-    if not Path(__file__).parent.joinpath('dist_manga').exists():
-        mkdir(Path(__file__).parent.joinpath('dist_manga'))
     print(
         f"Parsed manga will locate in {Path(__file__).parent.joinpath('dist_manga').resolve().absolute()}")
 
