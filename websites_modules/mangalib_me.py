@@ -125,20 +125,22 @@ def download_chapter(manga_name: string, tom_num: int, chapter_num: int, webdriv
             "Something went wrong. Cannot find manga pages. Page data has been saved to page_data.html")
 
     # Creating destination dirs
-    if not Path(__file__).parent.parent.joinpath('dist_manga').exists():
-        mkdir(Path(__file__).parent.joinpath('dist_manga'))
 
-    if not Path(__file__).parent.parent.joinpath('dist_manga').joinpath(manga_name).exists():
-        mkdir(Path(__file__).parent.joinpath(
-            'dist_manga').joinpath(manga_name))
+    dist_path = Path(__file__).parent.parent.joinpath('dist_manga')
+    if not dist_path.exists():
+        mkdir(dist_path)
 
-    if not Path(__file__).parent.parent.joinpath('dist_manga').joinpath(manga_name).joinpath(f"tom {tom_num}").exists():
-        mkdir(Path(__file__).parent.joinpath(
-            'dist_manga').joinpath(manga_name).joinpath(f"tom {tom_num}"))
+    manga_path = Path(dist_path, manga_name)
+    if not manga_path.exists():
+        mkdir(manga_path)
 
-    if not Path(__file__).parent.parent.joinpath('dist_manga').joinpath(manga_name).joinpath(f"tom {tom_num}").joinpath(f"chapter {chapter_num}").exists():
-        mkdir(Path(__file__).parent.joinpath(
-            'dist_manga').joinpath(manga_name).joinpath(f"tom {tom_num}").joinpath(f"chapter {chapter_num}"))
+    tom_path = Path(manga_path, f"tom {tom_num}")
+    if not tom_path.exists():
+        mkdir(tom_path)
+
+    chapter_path = Path(tom_path, f"chapter {chapter_num}")
+    if not chapter_path.exists():
+        mkdir(chapter_path)
 
     for page in pages:
         page.click()
@@ -150,9 +152,21 @@ def download_chapter(manga_name: string, tom_num: int, chapter_num: int, webdriv
             f"//div[@class='reader']/div[@class='reader-view']/div[@class='reader-view__container']/div[@data-p='{page_num}']/img"
         ).get_attribute('src')
 
-        print(manga_img)
+        print(f"Downloading {manga_img}...")
 
-        requests.get(manga_img)
+        resp = requests.get(manga_img)
+
+        if manga_img.endswith('.png'):
+            filename = f"{page_num}.png"
+        elif manga_img.endswith('.jpg'):
+            filename = f"{page_num}.jpg"
+        elif manga_img.endswith('.jpeg'):
+            filename = f"{page_num}.jepg"
+        else:
+            raise Exception(f"Undefined file extension: {manga_img}")
+
+        with open(Path(chapter_path, filename), 'wb') as f:
+            f.write(resp.content)
 
 
 def download_tom(manga_name, tom_num, webdriver):
