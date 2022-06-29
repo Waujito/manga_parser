@@ -1,10 +1,9 @@
-from posixpath import split
 import string
 from websites_modules.init_webdriver import init_webdriver
 import requests
-import re
-import json
 from bs4 import BeautifulSoup
+from os import mkdir
+from pathlib import Path
 from urllib.parse import urlparse
 
 from selenium.webdriver.common.by import By
@@ -91,14 +90,10 @@ def find():
 
 
 def download_chapter(manga_name: string, tom_num: int, chapter_num: int, webdriver: webdriver.Chrome):
-    #
-
     url = f"https://mangalib.me/{manga_name}/v{tom_num}/c{chapter_num}"
     webdriver.get(url)
 
-    # ls = webdriver.getLocalStorage()
-    # ls.setItem('reader', '{"desableHeader":false,"caution":false,"theme":"dark","mode":"vertical","containerWidth":960,"imageServer":"compress","imageFit":"width","showComments":false,"commentsSize":500,"clickTargetArea":"image","disableHeader":false,"turningPage":"image","zoom":"disabled"}')
-
+    # Check driver url and manga url
     if urlparse(url).path != urlparse(webdriver.current_url).path:
 
         print(url)
@@ -129,6 +124,22 @@ def download_chapter(manga_name: string, tom_num: int, chapter_num: int, webdriv
         raise Exception(
             "Something went wrong. Cannot find manga pages. Page data has been saved to page_data.html")
 
+    # Creating destination dirs
+    if not Path(__file__).parent.parent.joinpath('dist_manga').exists():
+        mkdir(Path(__file__).parent.joinpath('dist_manga'))
+
+    if not Path(__file__).parent.parent.joinpath('dist_manga').joinpath(manga_name).exists():
+        mkdir(Path(__file__).parent.joinpath(
+            'dist_manga').joinpath(manga_name))
+
+    if not Path(__file__).parent.parent.joinpath('dist_manga').joinpath(manga_name).joinpath(f"tom {tom_num}").exists():
+        mkdir(Path(__file__).parent.joinpath(
+            'dist_manga').joinpath(manga_name).joinpath(f"tom {tom_num}"))
+
+    if not Path(__file__).parent.parent.joinpath('dist_manga').joinpath(manga_name).joinpath(f"tom {tom_num}").joinpath(f"chapter {chapter_num}").exists():
+        mkdir(Path(__file__).parent.joinpath(
+            'dist_manga').joinpath(manga_name).joinpath(f"tom {tom_num}").joinpath(f"chapter {chapter_num}"))
+
     for page in pages:
         page.click()
 
@@ -141,20 +152,7 @@ def download_chapter(manga_name: string, tom_num: int, chapter_num: int, webdriv
 
         print(manga_img)
 
-    # content = webdriver.page_source
-
-    # soup = BeautifulSoup(content, 'html.parser')
-
-    # div_img_wraps = soup.find('div', {"class": "reader"}) \
-    #     .find('div', {"class": "reader-view"}) \
-    #     .find('div', {"class": "reader-view__container"}) \
-    #     .find_all('div', {"class": "reader-view__wrap"})
-
-    # for div_img in div_img_wraps:
-    #     img = div_img.find('img')
-    #     print(img)
-
-    # # print(soup)
+        requests.get(manga_img)
 
 
 def download_tom(manga_name, tom_num, webdriver):
