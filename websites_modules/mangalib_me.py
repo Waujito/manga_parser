@@ -5,6 +5,9 @@ from bs4 import BeautifulSoup
 from os import mkdir
 from pathlib import Path
 from urllib.parse import urlparse
+import re
+
+import json
 
 from selenium.webdriver.common.by import By
 from selenium import webdriver
@@ -87,10 +90,40 @@ def download_by_url():
 
 
 def find():
-    pass
+    print("Finding manga")
+    name = input("Enter manga name you want to download: ")
+    url = f"https://mangalib.me/search?type=manga&q={name}"
+
+    print("Initializing webdriver. Please wait this may take a while")
+    driver = init_webdriver()
+    print("Webdriver initialized. Loading page...")
+
+    driver.get(url)
+    content = driver.find_element(By.TAG_NAME, 'pre').text
+    json_content = json.loads(content)
+
+    if not json_content:
+        return print("Found nothing")
+
+    print("Found next manga:")
+    for i in range(json_content.__len__() if json_content.__len__() < 10 else 10):
+        print(
+            f"[{i+1}] {json_content[i]['rus_name']} / {json_content[i]['eng_name']} / {json_content[i]['name']}")
+
+    i = int(input("Please choose a manga number you want to download: "))-1
+
+    slug = json_content[i]["slug"]
+
+    print(f"Loading {slug}")
+
+    get_manga_info(slug, driver)
+
+    print("Closing session")
+    driver.close()
+    driver.quit()
 
 
-def download_chapter(manga_name: string, tom_num: int, chapter_num: int, webdriver: webdriver.Chrome):
+def download_chapter(manga_name: string, tom_num: int | float, chapter_num: int | float, webdriver: webdriver.Chrome):
     url = f"https://mangalib.me/{manga_name}/v{tom_num}/c{chapter_num}"
     webdriver.get(url)
 
@@ -204,10 +237,13 @@ def get_manga_info(manga_name: string, webdriver: webdriver.Chrome):
 
     bheight = webdriver.find_element(By.TAG_NAME, 'body').size['height']
 
-    tss = {}
     lt = ""
 
     chapters = {}
+
+    max_tom = 1
+
+    max_chapter = 1
 
     while True:
         tcs = webdriver.find_elements(
@@ -244,39 +280,104 @@ def get_manga_info(manga_name: string, webdriver: webdriver.Chrome):
             ).text
 
             ts = tc_text.split(' ')
-            for k in range(0, ts.__len__(), 1):
+            for k in range(ts.__len__()):
                 if ts[k] == "Том":
-                    tom = int(ts[k+1])
+                    tom = int(ts[k+1]) if str(float(ts[k+1])
+                                              ).endswith('.0') else float(ts[k+1])
 
                 if ts[k] == "Глава":
-                    chapter = int(ts[k+1])
+                    chapter = int(ts[k+1]) if str(float(ts[k+1])
+                                                  ).endswith('.0') else float(ts[k+1])
+                    break
 
             if not chapters.get(tom):
                 chapters[tom] = {chapter: chapter}
+                max_chapter = max(max_chapter, chapter)
+                max_tom = max(max_tom, tom)
             elif not chapters[tom].get(chapter):
                 chapters[tom][chapter] = chapter
+                max_chapter = max(max_chapter, chapter)
 
         if urlparse(elh).path.endswith('v1/c1'):
             break
 
     print("Information collected successfull")
     print(chapters)
+    while True:
+        print(f'Collecting manga {manga_name}')
+        print("What do you want to do?")
+        print("[1] Download range of chapters")
+        print("[2] Download range of toms")
+        print("[3] Download ALL manga")
+        print("[4] Exit")
+        q = input()
+        match q:
+            case '1':
+                q = input("Enter chapters range like '1-10' or '1,5, 7-9': ")
+                q = ''.join(q.split(' '))  # Delete all spaces
+                dchapters = []
+                q = q.split(",")
+                try:
+                    for n in q:
+                        try:
+                            n = int(n)
 
-    print("What do you want to do?")
-    print("[1] Download range of toms")
-    print("[2] Download range of chapters")
-    print("[3] Download ALL manga")
-    q = input()
-    match q:
-        case '1':
-            pass
-        case '2':
-            pass
-        case '3':
-            print("Downloading manga...")
-            for i in chapters:
-                for c in chapters[i]:
-                    print(f"Downloading tom {i} chapter {chapters[i][c]}")
-                    download_chapter(manga_name, i, chapters[i][c], webdriver)
-        case _:
-            return print("Incorrect number")
+                            if n <= max_chapter:
+                                dchapters.append(n)
+                            else:
+                                print(f"Chapter not found: {n}")
+                                raise Exception()
+                        except:
+                            if re.search('^[0-9]+-[0-9]+$', n):
+                                r = n.split('-')
+                                if r[0] > r[1]:
+                                    for i in range(int(r[0]), int(r[1])):
+                                        if not i <= max_chapter:
+                                            print(f"Chapter not found: {n}")
+                                            raise Exception()
+                                        dchapters.append(i)
+                                else:
+                                    print(
+                                        f"First range number cannot be bigger than second in {n} range")
+                                    print("Please try again")
+                                    raise Exception()
+                            else:
+                                print(f"Undefined range input {n}")
+                                raise Exception()
+                    for i in chapters:
+                        for c in chapters[i]:
+                            for dc in dchapters:
+                                if c == dc:
+                                    print(
+                                        f"Downloading tom {i} chapter {chapters[i][c]}")
+                                    download_chapter(
+                                        manga_name, i, chapters[i][c], webdriver)
+
+                except:
+                    continue
+
+            case '2':
+                try:
+                    tom = int(
+                        input("Enter a tom number you want to download: "))
+
+                    for c in chapters[tom]:
+                        print(
+                            f"Downloading tom {tom} chapter {chapters[tom][c]}")
+                        download_chapter(
+                            manga_name, i, chapters[tom][c], webdriver)
+                except:
+                    continue
+            case '3':
+                print("Downloading manga...")
+                sort_tk = sorted(chapters.keys())
+                for i in sort_tk:
+                    sort_ck = sorted(chapters[i].keys())
+                    for c in sort_ck:
+                        print(f"Downloading tom {i} chapter {chapters[i][c]}")
+                        download_chapter(
+                            manga_name, i, chapters[i][c], webdriver)
+            case '4': return
+            case _:
+                print("Incorrect number")
+                continue
